@@ -19,6 +19,8 @@ const sendEmailNotification = async (ticket) => {
           ticket_priority: ticket.priority,
           ticket_desc: ticket.desc,
           ticket_date: ticket.date,
+          whatsapp: "+966508677268",
+          to_email: "noman96ab@gmail.com",
         }
       })
     });
