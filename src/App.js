@@ -1,5 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 
+const EMAILJS_SERVICE_ID = "service_k02pnr9";
+const EMAILJS_TEMPLATE_ID = "template_9r0zksf";
+const EMAILJS_PUBLIC_KEY = "FS-sTo9L8_-wp_3KN";
+
+const sendEmailNotification = async (ticket) => {
+  try {
+    await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params: {
+          ticket_title: ticket.title,
+          ticket_category: ticket.category,
+          ticket_priority: ticket.priority,
+          ticket_desc: ticket.desc,
+          ticket_date: ticket.date,
+        }
+      })
+    });
+  } catch (e) { console.log("Email error:", e); }
+};
+
 const translations = {
   ar: {
     title: "نظام إدارة الأعطال التقنية", login: "تسجيل الدخول", username: "اسم المستخدم",
@@ -101,6 +126,7 @@ export default function App() {
     setTimeout(() => setTicketSent(false), 3000);
     addNotification(lang === "ar" ? `📋 تم رفع بلاغ جديد: ${tk.title}` : `📋 New ticket submitted: ${tk.title}`);
     sendEmailLog(tk, "new");
+    sendEmailNotification(tk);
   };
 
   const updateStatus = (id, status) => {
