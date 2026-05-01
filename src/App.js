@@ -1,4 +1,18 @@
 import { useState, useEffect, useRef } from "react";
+import { initializeApp } from "firebase/app";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCwMZPxZcbTzxeLU1wX0Ip6Z52Aroq1YiY",
+  authDomain: "helpdesk-system-ab660.firebaseapp.com",
+  projectId: "helpdesk-system-ab660",
+  messagingSenderId: "979214919217",
+  appId: "1:979214919217:web:ee69150c7da450365c9710"
+};
+
+const VAPID_KEY = "BFwfitA7XT-7OvQMJ_HIb6kT3PlxuMD2FNqhWOO6YZ-N34ZoC5yR4ALFcvrF7ENjqswhUeeaoL43Qc88PUWHB5A";
+const firebaseApp = initializeApp(firebaseConfig);
+const messaging = getMessaging(firebaseApp);
 
 const EMAILJS_SERVICE_ID = "service_k02pnr9";
 const EMAILJS_TEMPLATE_ID = "template_9r0zksf";
