@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getFirestore, collection, addDoc, getDocs, orderBy, query } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCwMZPxZcbTzxeLU1wX0Ip6Z52Aroq1YiY",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 const VAPID_KEY = "BFwfitA7XT-7OvQMJ_HIb6kT3PlxuMD2FNqhWOO6YZ-N34ZoC5yR4ALFcvrF7ENjqswhUeeaoL43Qc88PUWHB5A";
 const firebaseApp = initializeApp(firebaseConfig);
 const messaging = getMessaging(firebaseApp);
+const db = getFirestore(firebaseApp);
 
 const EMAILJS_SERVICE_ID = "service_k02pnr9";
 const EMAILJS_TEMPLATE_ID = "template_9r0zksf";
@@ -33,7 +35,7 @@ const sendEmailNotification = async (ticket) => {
           ticket_priority: ticket.priority,
           ticket_desc: ticket.desc,
           ticket_date: ticket.date,
-          whatsapp: "+966508677268",
+          whatsapp: "+971508677268",
           to_email: "noman96ab@gmail.com",
         }
       })
