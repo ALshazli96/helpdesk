@@ -211,7 +211,7 @@ export default function App() {
   const [loginHover, setLoginHover] = useState(false);
 
   if (!user) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg,#0f172a 0%,#1e3a8a 50%,#1e40af 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: 16 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(165deg,#0f172a 0%,#1e3a8a 50%,#1e40af 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: 16 }}>
       <div style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: 40, width: 360, boxShadow: "0 25px 60px rgba(0,0,0,0.4)", direction: isRTL ? "rtl" : "ltr" }}>
         
         {/* Header */}
