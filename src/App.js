@@ -211,8 +211,8 @@ export default function App() {
   const [loginHover, setLoginHover] = useState(false);
 
   if (!user) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(165deg,#0f172a 0%,#1e3a8a 50%,#1e40af 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: 16 }}>
-      <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: 40, width: 360, boxShadow: "0 25px 60px rgba(0,0,0,0.4)", direction: isRTL ? "rtl" : "ltr" }}>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(165deg,#0f172a 0%,#1e3a8a 60%,#1e40af 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif", padding:16 }}>
+      <div style={{ background:"rgba(255,255,255,0.1)", backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)", border:"1.5px solid rgba(255,255,255,0.25)", borderRadius:24, padding:40, width:360, maxWidth:"90vw", boxShadow:"0 25px 60px rgba(0,0,0,0.5)", direction:isRTL?"rtl":"ltr" }}>
         
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -374,29 +374,56 @@ export default function App() {
       <div style={{ marginRight: isRTL ? 220 : 0, marginLeft: isRTL ? 0 : 220, padding: "80px 24px 24px" }}>
 
         {/* Dashboard */}
-        {page === "dashboard" && (
-          <div>
-            <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>📊 {t.dashboard}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 32 }}>
-              {[{ label: t.total, value: stats.total, color: "#1e3a8a", icon: "🎫" }, { label: t.open, value: stats.open, color: "#3b82f6", icon: "🔵" }, { label: t.inProgress, value: stats.inProgress, color: "#f59e0b", icon: "🟡" }, { label: t.resolved, value: stats.resolved, color: "#22c55e", icon: "✅" }].map(card => (
-                <div key={card.label} style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", borderTop: `4px solid ${card.color}` }}>
-                  <div style={{ fontSize: 28 }}>{card.icon}</div>
-                  <div style={{ fontSize: 32, fontWeight: "bold", color: card.color }}>{card.value}</div>
-                  <div style={{ fontSize: 13, color: "#64748b" }}>{card.label}</div>
+        {page === "dashboard" && (() => {
+          const [filter, setFilter] = useState("all");
+          const filteredTickets = filter === "all" ? tickets : tickets.filter(tk => tk.status === filter);
+          const handleClearAll = () => {
+            if (window.confirm(lang === "ar" ? "هل أنت متأكد من مسح جميع البلاغات؟" : "Are you sure you want to clear all tickets?")) {
+              setTickets([]);
+              setFilter("all");
+            }
+          };
+          return (
+            <div>
+              <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>📊 {t.dashboard}</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 32 }}>
+                {[
+                  { label: t.total, value: stats.total, color: "#1e3a8a", icon: "🎫", key: "all" },
+                  { label: t.open, value: stats.open, color: "#3b82f6", icon: "🔵", key: "new" },
+                  { label: t.inProgress, value: stats.inProgress, color: "#f59e0b", icon: "🟡", key: "inProgress" },
+                  { label: t.resolved, value: stats.resolved, color: "#22c55e", icon: "✅", key: "resolved" }
+                ].map(card => (
+                  <div key={card.label} onClick={() => setFilter(card.key)} style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: filter === card.key ? `0 4px 20px ${card.color}40` : "0 2px 8px rgba(0,0,0,0.06)", borderTop: `4px solid ${card.color}`, cursor: "pointer", transform: filter === card.key ? "scale(1.03)" : "scale(1)", transition: "all 0.2s", border: filter === card.key ? `2px solid ${card.color}` : "none" }}>
+                    <div style={{ fontSize: 28 }}>{card.icon}</div>
+                    <div style={{ fontSize: 32, fontWeight: "bold", color: card.color }}>{card.value}</div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>{card.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, color: "#1e3a8a" }}>🎫 {lang === "ar" ? "البلاغات" : "Tickets"} {filter !== "all" && `— ${statusLabel[filter]}`}</h3>
+                  <button onClick={handleClearAll} style={{ padding: "6px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
+                    🗑️ {lang === "ar" ? "مسح الكل" : "Clear All"}
+                  </button>
                 </div>
-              ))}
+                {filteredTickets.length === 0 ? (
+                  <div style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>
+                    {lang === "ar" ? "لا توجد بلاغات" : "No tickets found"}
+                  </div>
+                ) : filteredTickets.slice(-5).reverse().map(tk => (
+                  <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }} onClick={() => setPage("tickets")}>
+                    <div>
+                      <div style={{ fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? tk.title : tk.titleEn}</div>
+                      <div style={{ fontSize: 12, color: "#94a3b8" }}>{tk.date}</div>
+                    </div>
+                    <span style={{ background: statusColor[tk.status], color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: 12 }}>{statusLabel[tk.status]}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ marginTop: 0, color: "#1e3a8a" }}>🎫 {lang === "ar" ? "آخر البلاغات" : "Recent Tickets"}</h3>
-              {tickets.slice(-4).reverse().map(tk => (
-                <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
-                  <div><div style={{ fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? tk.title : tk.titleEn}</div><div style={{ fontSize: 12, color: "#94a3b8" }}>{tk.date}</div></div>
-                  <span style={{ background: statusColor[tk.status], color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: 12 }}>{statusLabel[tk.status]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* New Ticket */}
         {page === "newTicket" && (
