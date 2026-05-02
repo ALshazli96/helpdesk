@@ -88,13 +88,6 @@ const initTickets = [
   { id: 3, title: "مشكلة في البريد", titleEn: "Email Issue", desc: "لا أستطيع إرسال بريد إلكتروني", priority: "low", status: "resolved", category: "software", date: "2025-04-26", assignedTo: "tech" },
 ];
 
-const aiResponses = {
-  network: { ar: "🔧 **حلول مشاكل الشبكة:**\n1. أعد تشغيل الراوتر\n2. تحقق من كابل الإيثرنت\n3. تحقق من إعدادات IP\n4. جرّب `ipconfig /release` ثم `ipconfig /renew`\n5. تحقق من DNS Settings", en: "🔧 **Network Troubleshooting:**\n1. Restart the router\n2. Check ethernet cable\n3. Verify IP settings\n4. Try `ipconfig /release` then `ipconfig /renew`\n5. Check DNS settings" },
-  hardware: { ar: "🖥️ **حلول مشاكل الأجهزة:**\n1. تحقق من توصيل الكابلات\n2. أعد تشغيل الجهاز\n3. تحقق من Device Manager\n4. حدّث التعريفات (Drivers)\n5. تحقق من الأضواء التحذيرية", en: "🖥️ **Hardware Troubleshooting:**\n1. Check cable connections\n2. Restart the device\n3. Check Device Manager\n4. Update drivers\n5. Check warning lights" },
-  software: { ar: "💻 **حلول مشاكل البرامج:**\n1. أعد تشغيل البرنامج\n2. تحقق من التحديثات\n3. أعد تثبيت البرنامج\n4. تحقق من صلاحيات المستخدم\n5. راجع Event Viewer للأخطاء", en: "💻 **Software Troubleshooting:**\n1. Restart the application\n2. Check for updates\n3. Reinstall the software\n4. Check user permissions\n5. Review Event Viewer logs" },
-  default: { ar: "🤖 **تحليل المشكلة:**\nبناءً على وصفك، أنصح بـ:\n1. إعادة تشغيل الجهاز أولاً\n2. التحقق من آخر التغييرات\n3. توثيق رسائل الخطأ\n4. التواصل مع الفريق التقني\n5. رفع بلاغ رسمي للمتابعة", en: "🤖 **Issue Analysis:**\nBased on your description:\n1. Restart the device first\n2. Check recent changes\n3. Document error messages\n4. Contact the IT team\n5. Submit a formal ticket" }
-};
-
 export default function App() {
   const [lang, setLang] = useState("ar");
   const [user, setUser] = useState(null);
@@ -111,20 +104,43 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [emailLog, setEmailLog] = useState([]);
   const [showEmail, setShowEmail] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [showPass, setShowPass] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loginHover, setLoginHover] = useState(false);
   const chatRef = useRef(null);
   const t = translations[lang];
   const isRTL = lang === "ar";
 
   useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [aiMessages]);
 
+  useEffect(() => {
+    const loadEmailLogs = async () => {
+      try {
+        const q = query(collection(db, "emailLogs"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        setEmailLog(snap.docs.map(d => ({ id: d.id, ...d.data(), time: d.data().time || "" })));
+      } catch (e) { console.log(e); }
+    };
+    loadEmailLogs();
+  }, []);
+
   const addNotification = (msg) => {
     const n = { id: Date.now(), msg, time: new Date().toLocaleTimeString(), read: false };
     setNotifications(prev => [n, ...prev]);
   };
 
-  const sendEmailLog = (ticket, newStatus) => {
-    const entry = { id: Date.now(), ticket: lang === "ar" ? ticket.title : ticket.titleEn, status: newStatus, time: new Date().toLocaleTimeString(), to: "الموظف سالم <salem@company.ae>" };
-    setEmailLog(prev => [entry, ...prev]);
+  const sendEmailLog = async (ticket, newStatus) => {
+    const entry = { ticket: lang === "ar" ? ticket.title : ticket.titleEn, status: newStatus, time: new Date().toLocaleTimeString(), to: "noman96ab@gmail.com" };
+    setEmailLog(prev => [{ id: Date.now(), ...entry }, ...prev]);
+    try { await addDoc(collection(db, "emailLogs"), { ...entry, createdAt: new Date() }); } catch (e) { console.log(e); }
+  };
+
+  const handleClearAll = () => {
+    if (window.confirm(lang === "ar" ? "هل أنت متأكد من مسح جميع البلاغات؟" : "Are you sure you want to clear all tickets?")) {
+      setTickets([]);
+      setFilter("all");
+    }
   };
 
   const handleLogin = () => {
@@ -150,41 +166,8 @@ export default function App() {
   const updateStatus = (id, status) => {
     const tk = tickets.find(t => t.id === id);
     setTickets(tickets.map(t => t.id === id ? { ...t, status } : t));
-    addNotification(lang === "ar" ? `🔄 تم تحديث البلاغ "${tk.title}" إلى: ${translations.ar[status] || status}` : `🔄 Ticket "${tk.titleEn}" updated to: ${status}`);
+    addNotification(lang === "ar" ? `🔄 تم تحديث البلاغ "${tk.title}"` : `🔄 Ticket "${tk.titleEn}" updated`);
     sendEmailLog(tk, status);
-  };
-
-  const handleAiSend = async () => {
-    if (!aiInput.trim()) return;
-    const userMsg = aiInput;
-    setAiInput("");
-    setAiMessages(prev => [...prev, { role: "user", text: userMsg }]);
-    setAiLoading(true);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: lang === "ar"
-            ? "أنت مساعد تقني ذكي متخصص في IT Support. أجب بالعربية بشكل مختصر وعملي. قدم خطوات واضحة لحل المشكلة. استخدم الإيموجي لتوضيح النقاط."
-            : "You are an expert IT Support assistant. Reply in English concisely and practically. Provide clear troubleshooting steps. Use emojis to highlight points.",
-          messages: [{ role: "user", content: userMsg }]
-        })
-      });
-      const data = await res.json();
-      const reply = data.content?.[0]?.text || (lang === "ar" ? "عذراً، حدث خطأ. حاول مرة أخرى." : "Sorry, an error occurred. Please try again.");
-      setAiMessages(prev => [...prev, { role: "ai", text: reply }]);
-    } catch {
-      const lower = userMsg.toLowerCase();
-      let resp = aiResponses.default;
-      if (lower.includes("نت") || lower.includes("شبكة") || lower.includes("internet") || lower.includes("network")) resp = aiResponses.network;
-      else if (lower.includes("طابع") || lower.includes("جهاز") || lower.includes("printer") || lower.includes("hardware")) resp = aiResponses.hardware;
-      else if (lower.includes("برنامج") || lower.includes("تطبيق") || lower.includes("software") || lower.includes("app")) resp = aiResponses.software;
-      setAiMessages(prev => [...prev, { role: "ai", text: typeof resp[lang] === "string" ? resp[lang] : resp.ar }]);
-    }
-    setAiLoading(false);
   };
 
   const unread = notifications.filter(n => !n.read).length;
@@ -192,6 +175,7 @@ export default function App() {
   const priorityColor = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
   const statusColor = { new: "#3b82f6", inProgress: "#f59e0b", resolved: "#22c55e", closed: "#6b7280" };
   const statusLabel = { new: t.new, inProgress: t.inProgress, resolved: t.resolved, closed: t.close };
+  const filteredTickets = filter === "all" ? tickets : tickets.filter(tk => tk.status === filter);
 
   const navItems = [
     { key: "dashboard", icon: "📊", label: t.dashboard },
@@ -206,83 +190,60 @@ export default function App() {
     return <div key={i} dangerouslySetInnerHTML={{ __html: bold }} style={{ marginBottom: 2 }} />;
   });
 
-  const [showPass, setShowPass] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [loginHover, setLoginHover] = useState(false);
+  const handleAiSend = async () => {
+    if (!aiInput.trim()) return;
+    const userMsg = aiInput;
+    setAiInput("");
+    setAiMessages(prev => [...prev, { role: "user", text: userMsg }]);
+    setAiLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: lang === "ar" ? "أنت مساعد تقني ذكي متخصص في IT Support. أجب بالعربية بشكل مختصر وعملي." : "You are an expert IT Support assistant. Reply in English concisely.",
+          messages: [{ role: "user", content: userMsg }]
+        })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || (lang === "ar" ? "عذراً، حدث خطأ." : "Sorry, an error occurred.");
+      setAiMessages(prev => [...prev, { role: "ai", text: reply }]);
+    } catch {
+      setAiMessages(prev => [...prev, { role: "ai", text: lang === "ar" ? "عذراً، حدث خطأ. حاول مرة أخرى." : "Sorry, an error occurred." }]);
+    }
+    setAiLoading(false);
+  };
 
   if (!user) return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(165deg,#0f172a 0%,#1e3a8a 60%,#1e40af 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif", padding:16 }}>
-      <div style={{ background:"rgba(255,255,255,0.1)", backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)", border:"1.5px solid rgba(255,255,255,0.25)", borderRadius:24, padding:40, width:360, maxWidth:"90vw", boxShadow:"0 25px 60px rgba(0,0,0,0.5)", direction:isRTL?"rtl":"ltr" }}>
-        
-        {/* Header */}
+    <div style={{ minHeight: "100vh", background: "linear-gradient(165deg,#0f172a 0%,#1e3a8a 60%,#1e40af 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: 16 }}>
+      <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1.5px solid rgba(255,255,255,0.25)", borderRadius: 24, padding: 40, width: 360, maxWidth: "90vw", boxShadow: "0 25px 60px rgba(0,0,0,0.5)", direction: isRTL ? "rtl" : "ltr" }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ fontSize: 52, marginBottom: 10 }}>🛠️</div>
           <h2 style={{ color: "#fff", margin: 0, fontSize: 20, fontWeight: "bold" }}>{t.title}</h2>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>{lang === "ar" ? "مرحباً بك — سجل دخولك للمتابعة" : "Welcome back — sign in to continue"}</p>
         </div>
-
-        {/* Lang */}
         <button onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ width: "100%", marginBottom: 18, padding: 9, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, cursor: "pointer", fontWeight: "bold", color: "#fff", fontSize: 13 }}>{t.lang}</button>
-
-        {/* Email */}
         <div style={{ marginBottom: 14 }}>
-          <input
-            placeholder={lang === "ar" ? "البريد الإلكتروني أو اسم المستخدم" : "Email or username"}
-            value={loginData.username}
-            onChange={e => setLoginData({ ...loginData, username: e.target.value })}
-            style={{ width: "100%", padding: "11px 14px", border: `1.5px solid ${loginError ? "#ef4444" : "rgba(255,255,255,0.2)"}`, borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }}
-          />
+          <input placeholder={lang === "ar" ? "البريد الإلكتروني أو اسم المستخدم" : "Email or username"} value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} style={{ width: "100%", padding: "11px 14px", border: `1.5px solid ${loginError ? "#ef4444" : "rgba(255,255,255,0.2)"}`, borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }} />
         </div>
-
-        {/* Password */}
         <div style={{ marginBottom: 6, position: "relative" }}>
-          <input
-            type={showPass ? "text" : "password"}
-            placeholder={lang === "ar" ? "كلمة المرور" : "Password"}
-            value={loginData.password}
-            onChange={e => setLoginData({ ...loginData, password: e.target.value })}
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
-            style={{ width: "100%", padding: "11px 40px 11px 14px", border: `1.5px solid ${loginError ? "#ef4444" : "rgba(255,255,255,0.2)"}`, borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }}
-          />
-          <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", top: "50%", [isRTL ? "left" : "right"]: 12, transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(255,255,255,0.6)" }}>
-            {showPass ? "🙈" : "👁️"}
-          </button>
+          <input type={showPass ? "text" : "password"} placeholder={lang === "ar" ? "كلمة المرور" : "Password"} value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} onKeyDown={e => e.key === "Enter" && handleLogin()} style={{ width: "100%", padding: "11px 40px 11px 14px", border: `1.5px solid ${loginError ? "#ef4444" : "rgba(255,255,255,0.2)"}`, borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }} />
+          <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", top: "50%", [isRTL ? "left" : "right"]: 12, transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(255,255,255,0.6)" }}>{showPass ? "🙈" : "👁️"}</button>
         </div>
-
-        {/* Error */}
         {loginError && <p style={{ color: "#fca5a5", fontSize: 12, marginBottom: 10, marginTop: 4 }}>⚠️ {loginError}</p>}
-
-        {/* Remember me + Forgot */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, marginTop: 8 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
             <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} style={{ width: 14, height: 14 }} />
             {lang === "ar" ? "تذكرني" : "Remember me"}
           </label>
-          <span style={{ color: "#93c5fd", fontSize: 13, cursor: "pointer" }}>
-            {lang === "ar" ? "نسيت كلمة المرور؟" : "Forgot password?"}
-          </span>
+          <span style={{ color: "#93c5fd", fontSize: 13, cursor: "pointer" }}>{lang === "ar" ? "نسيت كلمة المرور؟" : "Forgot password?"}</span>
         </div>
-
-        {/* Login Button */}
-        <button
-          onClick={handleLogin}
-          onMouseEnter={() => setLoginHover(true)}
-          onMouseLeave={() => setLoginHover(false)}
-          style={{ width: "100%", padding: 13, background: loginHover ? "#2563eb" : "#1d4ed8", color: "#fff", border: "none", borderRadius: 10, fontWeight: "bold", cursor: "pointer", fontSize: 15, transform: loginHover ? "scale(1.02)" : "scale(1)", transition: "all 0.2s", boxShadow: "0 4px 15px rgba(29,78,216,0.4)" }}>
-          {t.enter} →
-        </button>
-
-        {/* Quick ticket */}
+        <button onClick={handleLogin} onMouseEnter={() => setLoginHover(true)} onMouseLeave={() => setLoginHover(false)} style={{ width: "100%", padding: 13, background: loginHover ? "#2563eb" : "#1d4ed8", color: "#fff", border: "none", borderRadius: 10, fontWeight: "bold", cursor: "pointer", fontSize: 15, transform: loginHover ? "scale(1.02)" : "scale(1)", transition: "all 0.2s", boxShadow: "0 4px 15px rgba(29,78,216,0.4)" }}>{t.enter} →</button>
         <div style={{ textAlign: "center", marginTop: 16 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
-            {lang === "ar" ? "لا تستطيع الدخول؟ " : "Can't login? "}
-            <span style={{ color: "#93c5fd", cursor: "pointer" }}>
-              {lang === "ar" ? "أبلغ عن مشكلة تقنية" : "Report a technical issue"}
-            </span>
-          </span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{lang === "ar" ? "لا تستطيع الدخول؟ " : "Can't login? "}<span style={{ color: "#93c5fd", cursor: "pointer" }}>{lang === "ar" ? "أبلغ عن مشكلة تقنية" : "Report a technical issue"}</span></span>
         </div>
-
-        {/* Demo accounts */}
         <div style={{ marginTop: 20, padding: 12, background: "rgba(255,255,255,0.06)", borderRadius: 10, fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: isRTL ? "right" : "left" }}>
           <b style={{ color: "rgba(255,255,255,0.7)" }}>{lang === "ar" ? "بيانات تجريبية:" : "Demo accounts:"}</b><br />
           admin / 1234 — {lang === "ar" ? "مدير" : "Manager"}<br />
@@ -295,7 +256,6 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9", fontFamily: "sans-serif", direction: isRTL ? "rtl" : "ltr" }}>
-      {/* Sidebar */}
       <div style={{ position: "fixed", top: 0, [isRTL ? "right" : "left"]: 0, width: 220, height: "100vh", background: "#1e3a8a", color: "#fff", display: "flex", flexDirection: "column", zIndex: 100 }}>
         <div style={{ padding: "24px 16px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
           <div style={{ fontSize: 28, marginBottom: 4 }}>🛠️</div>
@@ -315,20 +275,13 @@ export default function App() {
         </div>
       </div>
 
-      {/* Top bar */}
       <div style={{ position: "fixed", top: 0, [isRTL ? "left" : "right"]: 0, width: `calc(100% - 220px)`, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: "12px 24px", display: "flex", justifyContent: isRTL ? "flex-start" : "flex-end", alignItems: "center", gap: 12, zIndex: 99 }}>
-        {/* Email log button */}
         <button onClick={() => setShowEmail(!showEmail)} style={{ position: "relative", background: "#f1f5f9", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 18 }}>
-          📧
-          {emailLog.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "#3b82f6", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>{emailLog.length}</span>}
+          📧{emailLog.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "#3b82f6", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>{emailLog.length}</span>}
         </button>
-        {/* Notifications */}
         <button onClick={() => setShowNotif(!showNotif)} style={{ position: "relative", background: "#f1f5f9", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 18 }}>
-          🔔
-          {unread > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "#ef4444", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
+          🔔{unread > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "#ef4444", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
         </button>
-
-        {/* Notif dropdown */}
         {showNotif && (
           <div style={{ position: "absolute", top: 52, [isRTL ? "left" : "right"]: 60, width: 320, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", zIndex: 200, overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", background: "#1e3a8a", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -342,13 +295,10 @@ export default function App() {
                     <div style={{ fontSize: 13 }}>{n.msg}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{n.time}</div>
                   </div>
-                ))
-              }
+                ))}
             </div>
           </div>
         )}
-
-        {/* Email dropdown */}
         {showEmail && (
           <div style={{ position: "absolute", top: 52, [isRTL ? "left" : "right"]: 110, width: 360, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", zIndex: 200, overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", background: "#0f172a", color: "#fff", display: "flex", justifyContent: "space-between" }}>
@@ -360,72 +310,54 @@ export default function App() {
                 emailLog.map(e => (
                   <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9" }}>
                     <div style={{ fontSize: 12, fontWeight: "bold" }}>📧 {lang === "ar" ? "إلى:" : "To:"} {e.to}</div>
-                    <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>{lang === "ar" ? `البلاغ "${e.ticket}" تم تحديثه إلى: ${e.status}` : `Ticket "${e.ticket}" updated to: ${e.status}`}</div>
+                    <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>{lang === "ar" ? `البلاغ "${e.ticket}"` : `Ticket "${e.ticket}"`} — {e.status}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8" }}>{e.time}</div>
                   </div>
-                ))
-              }
+                ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Main */}
       <div style={{ marginRight: isRTL ? 220 : 0, marginLeft: isRTL ? 0 : 220, padding: "80px 24px 24px" }}>
 
-        {/* Dashboard */}
-        {page === "dashboard" && (() => {
-          const [filter, setFilter] = useState("all");
-          const filteredTickets = filter === "all" ? tickets : tickets.filter(tk => tk.status === filter);
-          const handleClearAll = () => {
-            if (window.confirm(lang === "ar" ? "هل أنت متأكد من مسح جميع البلاغات؟" : "Are you sure you want to clear all tickets?")) {
-              setTickets([]);
-              setFilter("all");
-            }
-          };
-          return (
-            <div>
-              <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>📊 {t.dashboard}</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 32 }}>
-                {[
-                  { label: t.total, value: stats.total, color: "#1e3a8a", icon: "🎫", key: "all" },
-                  { label: t.open, value: stats.open, color: "#3b82f6", icon: "🔵", key: "new" },
-                  { label: t.inProgress, value: stats.inProgress, color: "#f59e0b", icon: "🟡", key: "inProgress" },
-                  { label: t.resolved, value: stats.resolved, color: "#22c55e", icon: "✅", key: "resolved" }
-                ].map(card => (
-                  <div key={card.label} onClick={() => setFilter(card.key)} style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: filter === card.key ? `0 4px 20px ${card.color}40` : "0 2px 8px rgba(0,0,0,0.06)", borderTop: `4px solid ${card.color}`, cursor: "pointer", transform: filter === card.key ? "scale(1.03)" : "scale(1)", transition: "all 0.2s", border: filter === card.key ? `2px solid ${card.color}` : "none" }}>
-                    <div style={{ fontSize: 28 }}>{card.icon}</div>
-                    <div style={{ fontSize: 32, fontWeight: "bold", color: card.color }}>{card.value}</div>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>{card.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, color: "#1e3a8a" }}>🎫 {lang === "ar" ? "البلاغات" : "Tickets"} {filter !== "all" && `— ${statusLabel[filter]}`}</h3>
-                  <button onClick={handleClearAll} style={{ padding: "6px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
-                    🗑️ {lang === "ar" ? "مسح الكل" : "Clear All"}
-                  </button>
+        {page === "dashboard" && (
+          <div>
+            <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>📊 {t.dashboard}</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 32 }}>
+              {[
+                { label: t.total, value: stats.total, color: "#1e3a8a", icon: "🎫", key: "all" },
+                { label: t.open, value: stats.open, color: "#3b82f6", icon: "🔵", key: "new" },
+                { label: t.inProgress, value: stats.inProgress, color: "#f59e0b", icon: "🟡", key: "inProgress" },
+                { label: t.resolved, value: stats.resolved, color: "#22c55e", icon: "✅", key: "resolved" }
+              ].map(card => (
+                <div key={card.label} onClick={() => setFilter(card.key)} style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: filter === card.key ? `0 4px 20px ${card.color}40` : "0 2px 8px rgba(0,0,0,0.06)", borderTop: `4px solid ${card.color}`, cursor: "pointer", transform: filter === card.key ? "scale(1.03)" : "scale(1)", transition: "all 0.2s", outline: filter === card.key ? `2px solid ${card.color}` : "none" }}>
+                  <div style={{ fontSize: 28 }}>{card.icon}</div>
+                  <div style={{ fontSize: 32, fontWeight: "bold", color: card.color }}>{card.value}</div>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>{card.label}</div>
                 </div>
-                {filteredTickets.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>
-                    {lang === "ar" ? "لا توجد بلاغات" : "No tickets found"}
-                  </div>
-                ) : filteredTickets.slice(-5).reverse().map(tk => (
-                  <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }} onClick={() => setPage("tickets")}>
-                    <div>
-                      <div style={{ fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? tk.title : tk.titleEn}</div>
-                      <div style={{ fontSize: 12, color: "#94a3b8" }}>{tk.date}</div>
-                    </div>
-                    <span style={{ background: statusColor[tk.status], color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: 12 }}>{statusLabel[tk.status]}</span>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
-          );
-        })()}
+            <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3 style={{ margin: 0, color: "#1e3a8a" }}>🎫 {lang === "ar" ? "البلاغات" : "Tickets"}</h3>
+                <button onClick={handleClearAll} style={{ padding: "6px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>🗑️ {lang === "ar" ? "مسح الكل" : "Clear All"}</button>
+              </div>
+              {filteredTickets.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>{lang === "ar" ? "لا توجد بلاغات" : "No tickets found"}</div>
+              ) : filteredTickets.slice(-5).reverse().map(tk => (
+                <div key={tk.id} onClick={() => setPage("tickets")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>
+                  <div>
+                    <div style={{ fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? tk.title : tk.titleEn}</div>
+                    <div style={{ fontSize: 12, color: "#94a3b8" }}>{tk.date}</div>
+                  </div>
+                  <span style={{ background: statusColor[tk.status], color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: 12 }}>{statusLabel[tk.status]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* New Ticket */}
         {page === "newTicket" && (
           <div style={{ maxWidth: 600 }}>
             <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>➕ {t.submitTicket}</h2>
@@ -451,7 +383,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Tickets */}
         {page === "tickets" && (
           <div>
             <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>🎫 {t.tickets}</h2>
@@ -487,7 +418,6 @@ export default function App() {
           </div>
         )}
 
-        {/* AI Assistant */}
         {page === "ai" && (
           <div style={{ maxWidth: 680 }}>
             <h2 style={{ color: "#1e3a8a", marginBottom: 8 }}>{t.aiTitle} {t.aiAssistant}</h2>
@@ -506,9 +436,7 @@ export default function App() {
                 {aiLoading && (
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <div style={{ fontSize: 24 }}>🤖</div>
-                    <div style={{ padding: "10px 14px", background: "#f1f5f9", borderRadius: 12, fontSize: 13, color: "#64748b" }}>
-                      {lang === "ar" ? "جارٍ التحليل..." : "Analyzing..."}
-                    </div>
+                    <div style={{ padding: "10px 14px", background: "#f1f5f9", borderRadius: 12, fontSize: 13, color: "#64748b" }}>{lang === "ar" ? "جارٍ التحليل..." : "Analyzing..."}</div>
                   </div>
                 )}
               </div>
@@ -520,7 +448,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Reports */}
         {page === "reports" && (
           <div>
             <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>📈 {t.reports}</h2>
