@@ -206,20 +206,85 @@ export default function App() {
     return <div key={i} dangerouslySetInnerHTML={{ __html: bold }} style={{ marginBottom: 2 }} />;
   });
 
+  const [showPass, setShowPass] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loginHover, setLoginHover] = useState(false);
+
   if (!user) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#1e3a8a,#0f172a)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: 40, width: 340, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", direction: isRTL ? "rtl" : "ltr" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🛠️</div>
-          <h2 style={{ color: "#1e3a8a", margin: 0, fontSize: 18 }}>{t.title}</h2>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg,#0f172a 0%,#1e3a8a 50%,#1e40af 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: 16 }}>
+      <div style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: 40, width: 360, boxShadow: "0 25px 60px rgba(0,0,0,0.4)", direction: isRTL ? "rtl" : "ltr" }}>
+        
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 52, marginBottom: 10 }}>🛠️</div>
+          <h2 style={{ color: "#fff", margin: 0, fontSize: 20, fontWeight: "bold" }}>{t.title}</h2>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>{lang === "ar" ? "مرحباً بك — سجل دخولك للمتابعة" : "Welcome back — sign in to continue"}</p>
         </div>
-        <button onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ width: "100%", marginBottom: 16, padding: 8, background: "#f1f5f9", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: "bold" }}>{t.lang}</button>
-        <input placeholder={t.username} value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} style={{ width: "100%", padding: 10, marginBottom: 12, border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
-        <input type="password" placeholder={t.password} value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} onKeyDown={e => e.key === "Enter" && handleLogin()} style={{ width: "100%", padding: 10, marginBottom: 12, border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
-        {loginError && <p style={{ color: "red", fontSize: 13, marginBottom: 8 }}>{loginError}</p>}
-        <button onClick={handleLogin} style={{ width: "100%", padding: 12, background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", fontSize: 15 }}>{t.enter}</button>
-        <div style={{ marginTop: 16, padding: 12, background: "#f8fafc", borderRadius: 8, fontSize: 12, color: "#64748b" }}>
-          <b>{lang === "ar" ? "بيانات تجريبية:" : "Demo accounts:"}</b><br />
+
+        {/* Lang */}
+        <button onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ width: "100%", marginBottom: 18, padding: 9, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, cursor: "pointer", fontWeight: "bold", color: "#fff", fontSize: 13 }}>{t.lang}</button>
+
+        {/* Email */}
+        <div style={{ marginBottom: 14 }}>
+          <input
+            placeholder={lang === "ar" ? "البريد الإلكتروني أو اسم المستخدم" : "Email or username"}
+            value={loginData.username}
+            onChange={e => setLoginData({ ...loginData, username: e.target.value })}
+            style={{ width: "100%", padding: "11px 14px", border: `1.5px solid ${loginError ? "#ef4444" : "rgba(255,255,255,0.2)"}`, borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }}
+          />
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: 6, position: "relative" }}>
+          <input
+            type={showPass ? "text" : "password"}
+            placeholder={lang === "ar" ? "كلمة المرور" : "Password"}
+            value={loginData.password}
+            onChange={e => setLoginData({ ...loginData, password: e.target.value })}
+            onKeyDown={e => e.key === "Enter" && handleLogin()}
+            style={{ width: "100%", padding: "11px 40px 11px 14px", border: `1.5px solid ${loginError ? "#ef4444" : "rgba(255,255,255,0.2)"}`, borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }}
+          />
+          <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", top: "50%", [isRTL ? "left" : "right"]: 12, transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(255,255,255,0.6)" }}>
+            {showPass ? "🙈" : "👁️"}
+          </button>
+        </div>
+
+        {/* Error */}
+        {loginError && <p style={{ color: "#fca5a5", fontSize: 12, marginBottom: 10, marginTop: 4 }}>⚠️ {loginError}</p>}
+
+        {/* Remember me + Forgot */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, marginTop: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
+            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} style={{ width: 14, height: 14 }} />
+            {lang === "ar" ? "تذكرني" : "Remember me"}
+          </label>
+          <span style={{ color: "#93c5fd", fontSize: 13, cursor: "pointer" }}>
+            {lang === "ar" ? "نسيت كلمة المرور؟" : "Forgot password?"}
+          </span>
+        </div>
+
+        {/* Login Button */}
+        <button
+          onClick={handleLogin}
+          onMouseEnter={() => setLoginHover(true)}
+          onMouseLeave={() => setLoginHover(false)}
+          style={{ width: "100%", padding: 13, background: loginHover ? "#2563eb" : "#1d4ed8", color: "#fff", border: "none", borderRadius: 10, fontWeight: "bold", cursor: "pointer", fontSize: 15, transform: loginHover ? "scale(1.02)" : "scale(1)", transition: "all 0.2s", boxShadow: "0 4px 15px rgba(29,78,216,0.4)" }}>
+          {t.enter} →
+        </button>
+
+        {/* Quick ticket */}
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+            {lang === "ar" ? "لا تستطيع الدخول؟ " : "Can't login? "}
+            <span style={{ color: "#93c5fd", cursor: "pointer" }}>
+              {lang === "ar" ? "أبلغ عن مشكلة تقنية" : "Report a technical issue"}
+            </span>
+          </span>
+        </div>
+
+        {/* Demo accounts */}
+        <div style={{ marginTop: 20, padding: 12, background: "rgba(255,255,255,0.06)", borderRadius: 10, fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: isRTL ? "right" : "left" }}>
+          <b style={{ color: "rgba(255,255,255,0.7)" }}>{lang === "ar" ? "بيانات تجريبية:" : "Demo accounts:"}</b><br />
           admin / 1234 — {lang === "ar" ? "مدير" : "Manager"}<br />
           tech / 1234 — {lang === "ar" ? "فني" : "Technician"}<br />
           user / 1234 — {lang === "ar" ? "موظف" : "Employee"}
