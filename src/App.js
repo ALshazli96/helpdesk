@@ -196,23 +196,23 @@ export default function App() {
     setAiInput("");
     setAiMessages(prev => [...prev, { role: "user", text: userMsg }]);
     setAiLoading(true);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: lang === "ar" ? "أنت مساعد تقني ذكي متخصص في IT Support. أجب بالعربية بشكل مختصر وعملي." : "You are an expert IT Support assistant. Reply in English concisely.",
-          messages: [{ role: "user", content: userMsg }]
-        })
-      });
-      const data = await res.json();
-      const reply = data.content?.[0]?.text || (lang === "ar" ? "عذراً، حدث خطأ." : "Sorry, an error occurred.");
-      setAiMessages(prev => [...prev, { role: "ai", text: reply }]);
-    } catch {
-      setAiMessages(prev => [...prev, { role: "ai", text: lang === "ar" ? "عذراً، حدث خطأ. حاول مرة أخرى." : "Sorry, an error occurred." }]);
+    await new Promise(r => setTimeout(r, 1000));
+    const low = userMsg.toLowerCase();
+    let reply = "";
+    if (low.includes("نت") || low.includes("شبكة") || low.includes("internet") || low.includes("network") || low.includes("wifi")) {
+      reply = lang === "ar" ? "🔧 **حلول مشاكل الشبكة:**\n1. أعد تشغيل الراوتر\n2. تحقق من كابل الإيثرنت\n3. تحقق من إعدادات IP\n4. جرّب `ipconfig /release` ثم `ipconfig /renew`\n5. تحقق من DNS Settings" : "🔧 **Network Troubleshooting:**\n1. Restart the router\n2. Check ethernet cable\n3. Verify IP settings\n4. Try `ipconfig /release` then `ipconfig /renew`\n5. Check DNS settings";
+    } else if (low.includes("طابع") || low.includes("printer") || low.includes("print")) {
+      reply = lang === "ar" ? "🖨️ **حلول مشاكل الطابعة:**\n1. تحقق من توصيل الكابل\n2. أعد تشغيل الطابعة\n3. امسح قائمة الطباعة\n4. أعد تثبيت التعريف\n5. تحقق من مستوى الحبر" : "🖨️ **Printer Troubleshooting:**\n1. Check cable connection\n2. Restart printer\n3. Clear print queue\n4. Reinstall driver\n5. Check ink level";
+    } else if (low.includes("برنامج") || low.includes("تطبيق") || low.includes("software") || low.includes("app")) {
+      reply = lang === "ar" ? "💻 **حلول مشاكل البرامج:**\n1. أعد تشغيل البرنامج\n2. تحقق من التحديثات\n3. أعد التثبيت\n4. تحقق من الصلاحيات\n5. راجع Event Viewer" : "💻 **Software Troubleshooting:**\n1. Restart the application\n2. Check for updates\n3. Reinstall the software\n4. Check user permissions\n5. Review Event Viewer";
+    } else if (low.includes("بطيء") || low.includes("slow") || low.includes("hang") || low.includes("تعليق")) {
+      reply = lang === "ar" ? "⚡ **حلول بطء الجهاز:**\n1. أغلق البرامج غير الضرورية\n2. تحقق من Task Manager\n3. نظّف القرص الصلب\n4. تحقق من الفيروسات\n5. أضف RAM إذا أمكن" : "⚡ **Slow Device Troubleshooting:**\n1. Close unnecessary programs\n2. Check Task Manager\n3. Clean up disk space\n4. Run antivirus scan\n5. Consider adding RAM";
+    } else if (low.includes("hi") || low.includes("hello") || low.includes("مرحبا") || low.includes("السلام")) {
+      reply = lang === "ar" ? "👋 مرحباً! أنا مساعدك التقني. كيف أقدر أساعدك اليوم؟\n\nيمكنني مساعدتك في:\n- مشاكل الشبكة\n- مشاكل الطابعات\n- مشاكل البرامج\n- بطء الأجهزة" : "👋 Hello! I'm your IT assistant. How can I help you today?\n\nI can help with:\n- Network issues\n- Printer problems\n- Software issues\n- Slow devices";
+    } else {
+      reply = lang === "ar" ? "🤖 **تحليل المشكلة:**\nبناءً على وصفك، أنصح بـ:\n1. إعادة تشغيل الجهاز أولاً\n2. التحقق من آخر التغييرات\n3. توثيق رسائل الخطأ\n4. التواصل مع الفريق التقني\n5. رفع بلاغ رسمي للمتابعة" : "🤖 **Issue Analysis:**\nBased on your description:\n1. Restart the device first\n2. Check recent changes\n3. Document error messages\n4. Contact IT team\n5. Submit a formal ticket";
     }
+    setAiMessages(prev => [...prev, { role: "ai", text: reply }]);
     setAiLoading(false);
   };
 
@@ -346,12 +346,15 @@ export default function App() {
               {filteredTickets.length === 0 ? (
                 <div style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>{lang === "ar" ? "لا توجد بلاغات" : "No tickets found"}</div>
               ) : filteredTickets.slice(-5).reverse().map(tk => (
-                <div key={tk.id} onClick={() => setPage("tickets")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}>
-                  <div>
+                <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ cursor: "pointer", flex: 1 }} onClick={() => setPage("tickets")}>
                     <div style={{ fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? tk.title : tk.titleEn}</div>
                     <div style={{ fontSize: 12, color: "#94a3b8" }}>{tk.date}</div>
                   </div>
-                  <span style={{ background: statusColor[tk.status], color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: 12 }}>{statusLabel[tk.status]}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ background: statusColor[tk.status], color: "#fff", padding: "4px 10px", borderRadius: 20, fontSize: 12 }}>{statusLabel[tk.status]}</span>
+                    <button onClick={() => setTickets(prev => prev.filter(t => t.id !== tk.id))} style={{ padding: "4px 8px", background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>🗑️</button>
+                  </div>
                 </div>
               ))}
             </div>
