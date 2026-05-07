@@ -175,7 +175,10 @@ export default function App() {
   const priorityColor = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
   const statusColor = { new: "#3b82f6", inProgress: "#f59e0b", resolved: "#22c55e", closed: "#6b7280" };
   const statusLabel = { new: t.new, inProgress: t.inProgress, resolved: t.resolved, closed: t.close };
-  const filteredTickets = filter === "all" ? tickets : tickets.filter(tk => tk.status === filter);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredTickets = (filter === "all" ? tickets : tickets.filter(tk => tk.status === filter))
+    .filter(tk => searchQuery === "" || tk.title.includes(searchQuery) || tk.titleEn.toLowerCase().includes(searchQuery.toLowerCase()) || tk.desc.includes(searchQuery));
 
   const navItems = [
     { key: "dashboard", icon: "📊", label: t.dashboard },
@@ -390,6 +393,15 @@ export default function App() {
         {page === "tickets" && (
           <div>
             <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>🎫 {t.tickets}</h2>
+            {/* Search Bar */}
+            <div style={{ marginBottom: 16, position: "relative" }}>
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={lang === "ar" ? "🔍 ابحث في البلاغات..." : "🔍 Search tickets..."}
+                style={{ width: "100%", padding: "10px 16px", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 14, boxSizing: "border-box", background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+              />
+            </div>
             <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
