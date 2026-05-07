@@ -182,6 +182,7 @@ export default function App() {
     ...(user?.role !== "manager" ? [{ key: "newTicket", icon: "➕", label: t.newTicket }] : []),
     { key: "tickets", icon: "🎫", label: t.tickets },
     { key: "ai", icon: "🤖", label: t.aiAssistant },
+    { key: "profile", icon: "👤", label: lang === "ar" ? "ملفي الشخصي" : "My Profile" },
     ...(user?.role === "manager" ? [{ key: "reports", icon: "📈", label: t.reports }] : []),
   ];
 
@@ -451,7 +452,58 @@ export default function App() {
           </div>
         )}
 
-        {page === "reports" && (
+        {page === "profile" && (() => {
+          const [editName, setEditName] = useState(lang === "ar" ? user.nameAr : user.nameEn);
+          const [editPass, setEditPass] = useState("");
+          const [saved, setSaved] = useState(false);
+          const myTickets = tickets.filter(tk => tk.assignedTo === user.username || user.role === "employee");
+          return (
+            <div style={{ maxWidth: 600 }}>
+              <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>👤 {lang === "ar" ? "ملفي الشخصي" : "My Profile"}</h2>
+              
+              {/* Avatar */}
+              <div style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", marginBottom: 16, display: "flex", alignItems: "center", gap: 20 }}>
+                <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#1e3a8a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>
+                  {user.role === "manager" ? "👨‍💼" : user.role === "technician" ? "🔧" : "👤"}
+                </div>
+                <div>
+                  <div style={{ fontWeight: "bold", fontSize: 18, color: "#1e3a8a" }}>{lang === "ar" ? user.nameAr : user.nameEn}</div>
+                  <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>@{user.username}</div>
+                  <div style={{ background: "#eff6ff", color: "#1e3a8a", padding: "3px 10px", borderRadius: 20, fontSize: 12, marginTop: 6, display: "inline-block" }}>
+                    {user.role === "manager" ? (lang === "ar" ? "مدير" : "Manager") : user.role === "technician" ? (lang === "ar" ? "فني" : "Technician") : (lang === "ar" ? "موظف" : "Employee")}
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+                {[
+                  { label: lang === "ar" ? "إجمالي البلاغات" : "Total Tickets", value: tickets.length, color: "#1e3a8a" },
+                  { label: lang === "ar" ? "قيد المعالجة" : "In Progress", value: tickets.filter(t => t.status === "inProgress").length, color: "#f59e0b" },
+                  { label: lang === "ar" ? "محلولة" : "Resolved", value: tickets.filter(t => t.status === "resolved").length, color: "#22c55e" },
+                ].map(s => (
+                  <div key={s.label} style={{ background: "#fff", borderRadius: 12, padding: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}>
+                    <div style={{ fontSize: 28, fontWeight: "bold", color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Edit */}
+              <div style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+                <h3 style={{ marginTop: 0, color: "#1e3a8a" }}>✏️ {lang === "ar" ? "تعديل المعلومات" : "Edit Information"}</h3>
+                {saved && <div style={{ background: "#dcfce7", color: "#166534", padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13 }}>✅ {lang === "ar" ? "تم الحفظ بنجاح!" : "Saved successfully!"}</div>}
+                <label style={{ display: "block", marginBottom: 6, fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? "الاسم" : "Name"}</label>
+                <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: "100%", padding: 10, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 16, boxSizing: "border-box", fontSize: 14 }} />
+                <label style={{ display: "block", marginBottom: 6, fontWeight: "bold", fontSize: 14 }}>{lang === "ar" ? "كلمة المرور الجديدة" : "New Password"}</label>
+                <input type="password" value={editPass} onChange={e => setEditPass(e.target.value)} placeholder={lang === "ar" ? "اتركه فارغاً إذا لم تريد التغيير" : "Leave empty to keep current"} style={{ width: "100%", padding: 10, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 16, boxSizing: "border-box", fontSize: 14 }} />
+                <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 3000); }} style={{ width: "100%", padding: 12, background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 8, fontWeight: "bold", cursor: "pointer", fontSize: 15 }}>
+                  💾 {lang === "ar" ? "حفظ التغييرات" : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          );
+        })()} (
           <div>
             <h2 style={{ color: "#1e3a8a", marginBottom: 24 }}>📈 {t.reports}</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
